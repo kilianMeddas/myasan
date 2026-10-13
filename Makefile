@@ -1,8 +1,9 @@
 CC = gcc
 CFLAGS = -std=c99 -pedantic -Werror -Wall -Wextra -Wvla -fPIC -Iinclude 
 LDFLAGS = -shared
-SRC = ....
-SRC_H =....
+SRC = $(wildcard src/*.c)
+SRC_H = $(wildcard include/*.h)
+
 OBJECT = $(SRC:.c=.o)
 
 TARGET = libmyasan.so
