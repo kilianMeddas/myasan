@@ -18,8 +18,6 @@ library: $(TARGET)
 $(TARGET):$(OBJECT)
 	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJECT)
 
-src/%.o: src/%.c
-        $(CC) $(CFLAGS) -c $< -o $@
 format:
 	clang-format -i $(SRC) $(SRC_H) $(TEST).c $(TEST).h
 
