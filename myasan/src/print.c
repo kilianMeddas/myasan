@@ -47,7 +47,7 @@ void print_memory_error(enum memory_error error, void *ptr)
     len = snprintf(
         buffer, sizeof(buffer),
         "=================================================================\n"
-        "==%04d== ERROR: AddressSanitizer: %s on address %p\n",
+        "==%04u== ERROR: AddressSanitizer: %s on address %p\n",
         error, get_memory_error_name(error), ptr);
     if (len < 0 || (size_t)len >= sizeof(buffer))
         return;

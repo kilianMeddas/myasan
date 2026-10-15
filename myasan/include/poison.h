@@ -13,5 +13,6 @@ enum memory_error poison_is_poisoned(void *ptr, size_t access_size,
 void check_ptr_validity(void *ptr, size_t access_size);
 void poison_shadow_malloc(void *ptr, size_t size);
 void poison_shadow_free(void *ptr, size_t size);
+void poison_print_shadow(void *addr, void *shadow_addr);
 
 #endif // POISON_H

@@ -3,8 +3,11 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "../include/myasan.h"
+#include "../include/print.h"
+
 void poison_shadow_malloc(void *ptr, size_t size)
 {
     size_t full_granules = size / 8;
@@ -128,4 +131,64 @@ enum memory_error poison_is_poisoned(void *ptr, size_t access_size,
     }
 
     return MEMORY_ERROR_NONE;
+}
+
+void poison_print_shadow(void *addr, void *shadow_addr)
+{
+    uintptr_t bad_addr = (uintptr_t)shadow_addr;
+    uintptr_t shadow_start;
+    uintptr_t line_start;
+    uint8_t *shadow;
+    int bad_line;
+
+    shadow_start = bad_addr & ~(uintptr_t)15;
+    line_start = shadow_start - 4 * 16;
+    shadow = (uint8_t *)line_start;
+    bad_line = (int)((bad_addr - line_start) / 16);
+
+    for (int i = 0; i < 9; i++)
+    {
+        uintptr_t current = line_start + (uintptr_t)i * 16;
+
+        if (i == bad_line)
+            fprintf(stderr, " =>%p:\t", (void *)current);
+        else
+            fprintf(stderr, " %p:\t", (void *)current);
+
+        for (int j = 0; j < 16; j++)
+        {
+            uintptr_t current_byte = current + (uintptr_t)j;
+
+            if (current_byte == bad_addr)
+                fprintf(stderr, "[%02x]", shadow[i * 16 + j]);
+            else
+                fprintf(stderr, " %02x ", shadow[i * 16 + j]);
+
+            if (j != 15)
+                fprintf(stderr, " ");
+        }
+
+        fprintf(stderr, "\n");
+    }
+
+    (void)addr;
+}
+
+void check_ptr_validity(void *ptr, size_t access_size)
+{
+    uint8_t *bad = NULL;
+    enum memory_error error;
+
+    assert(ptr != NULL);
+
+    error = poison_is_poisoned(ptr, access_size, &bad);
+
+    if (error == MEMORY_ERROR_NONE)
+        return;
+
+    my_asan.error = error;
+    print_memory_error(error, ptr);
+    poison_print_shadow(ptr, bad);
+    print_backtrace();
+    exit(3);
 }
