@@ -7,7 +7,10 @@ SRC_H = $(wildcard include/*.h)
 OBJECT = $(SRC:.c=.o)
 
 TARGET = libmyasan.so
-TEST = tests/test_suite
+
+TEST_SRC = $(shell find tests -type f -name '*.c')
+TEST_H = $(shell find tests -type f -name '*.h')
+TEST_BIN = $(TEST_SRC:.c=)
 
 .PHONY: all library check clean format debug
 
@@ -19,18 +22,27 @@ $(TARGET):$(OBJECT)
 	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJECT)
 
 format:
-	clang-format -i $(SRC) $(SRC_H) $(TEST).c $(TEST).h
+	clang-format -i $(SRC) $(SRC_H) $(TEST_SRC) $(TEST_H)
 
-$(TEST): tests/test_suite.c $(OBJECT)
-	$(CC) $(CFLAGS) tests/test_suite.c $(filter-out src/main.c, $(OBJECT)) -lcriterion -o $(TEST)
 
-check: $(TARGET) $(TEST)
-	./$(TEST)
+tests/%: tests/%.c $(TARGET)
+	$(CC) $(CFLAGS) $< -L"$(CURDIR)" -lcriterion -lmyasan -Wl,-rpath,"$(CURDIR)" -o $@
+
+
+check: clean $(TARGET) $(TEST_BIN)
+	@printf "\n\n"
+	@for test in $(TEST_BIN); do \
+		echo "Running $$test"; \
+		LD_PRELOAD="$(CURDIR)/$(TARGET)" ./$$test; \
+		result=$$?; \
+		echo "Exit code: $$result"; \
+		if [ $$result -ne 0 ]; then exit $$result; fi; \
+	done
 
 debug: CFLAGS += -g
 debug: clean
 	$(MAKE) all
 
 clean: 
-	rm -f $(TARGET) $(OBJECT) $(TEST)
+	rm -f $(TARGET) $(OBJECT) $(TEST_BIN)
 
