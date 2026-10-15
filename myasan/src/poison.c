@@ -1,10 +1,10 @@
 
 #include "../include/poison.h"
 
+#include <assert.h>
 #include <stdint.h>
 
 #include "../include/myasan.h"
-
 void poison_shadow_malloc(void *ptr, size_t size)
 {
     size_t full_granules = size / 8;
@@ -70,6 +70,10 @@ enum memory_error poison_is_poisoned(void *ptr, size_t access_size,
     uint8_t *shadow_ptr;
     size_t offset;
     size_t shadow_size;
+    size_t remaining;
+    size_t current_offset;
+
+    assert(ptr != NULL);
 
     ptr_addr = (uintptr_t)ptr;
     shadow_addr = SHADOW_OFFSET + (ptr_addr >> 3);
@@ -80,33 +84,47 @@ enum memory_error poison_is_poisoned(void *ptr, size_t access_size,
     if ((offset + access_size) % 8 != 0)
         shadow_size++;
 
+    remaining = access_size;
+    current_offset = offset;
+
     for (size_t i = 0; i < shadow_size; i++)
     {
         uint8_t value = shadow_ptr[i];
+        size_t bytes = 8 - current_offset;
+
+        if (bytes > remaining)
+            bytes = remaining;
 
         if (value == 0x00)
-            continue;
-
-        *bad_ptr = &shadow_ptr[i];
-
-        if (value == 0xFA)
-            return MEMORY_ERROR_BUFFER_OVERFLOW;
-
-        if (value == 0xFD)
-            return MEMORY_ERROR_USE_AFTER_FREE;
-
-        if (value >= 0x01 && value <= 0x07)
         {
-            size_t access_end = offset + access_size;
-            size_t granule_end = i * 8 + value;
-
-            if (access_end > granule_end)
+            /* Granule entirely accessible. */
+        }
+        else if (value == 0xFA)
+        {
+            *bad_ptr = &shadow_ptr[i];
+            return MEMORY_ERROR_BUFFER_OVERFLOW;
+        }
+        else if (value == 0xFD)
+        {
+            *bad_ptr = &shadow_ptr[i];
+            return MEMORY_ERROR_USE_AFTER_FREE;
+        }
+        else if (value >= 0x01 && value <= 0x07)
+        {
+            if (current_offset + bytes > value)
+            {
+                *bad_ptr = &shadow_ptr[i];
                 return MEMORY_ERROR_BUFFER_OVERFLOW;
-
-            continue;
+            }
+        }
+        else
+        {
+            *bad_ptr = &shadow_ptr[i];
+            return MEMORY_ERROR_INVALID_PTR;
         }
 
-        return MEMORY_ERROR_INVALID_PTR;
+        remaining -= bytes;
+        current_offset = 0;
     }
 
     return MEMORY_ERROR_NONE;
