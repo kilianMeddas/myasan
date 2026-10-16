@@ -1,5 +1,8 @@
+#define _GNU_SOURCE
+
 #include "../include/print.h"
 
+#include <dlfcn.h>
 #include <execinfo.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,28 +62,33 @@ void print_memory_error(enum memory_error error, void *ptr)
 void print_backtrace(void)
 {
     void *frames[64];
+    Dl_info library;
+    Dl_info current;
     int count = backtrace(frames, 64);
 
-    if (count <= 1)
+    if (dladdr(&my_asan, &library) == 0)
         return;
 
     char **symbols = backtrace_symbols(frames, count);
 
-    if (!symbols)
+    if (symbols == NULL)
         return;
 
     for (int i = 1; i < count; i++)
     {
-        if (strstr(symbols[i], "libmyasan.so") == NULL)
-        {
-            char buffer[1024];
-            int len = snprintf(buffer, sizeof(buffer), "\t#0 %s\n", symbols[i]);
+        if (dladdr(frames[i], &current) == 0)
+            continue;
 
-            if (len > 0 && (size_t)len < sizeof(buffer))
-                write_stderr(buffer, (size_t)len);
+        if (current.dli_fbase == library.dli_fbase)
+            continue;
 
-            break;
-        }
+        char buffer[1024];
+        int len = snprintf(buffer, sizeof(buffer), "\t#0 %s\n", symbols[i]);
+
+        if (len > 0 && (size_t)len < sizeof(buffer))
+            write_stderr(buffer, (size_t)len);
+
+        break;
     }
 
     free(symbols);
