@@ -29,6 +29,9 @@ tests/%: tests/%.c $(TARGET)
 	$(CC) $< -L"$(CURDIR)"  -lmyasan -Wl,-rpath,"$(CURDIR)" -o $@
 
 
+# Run all tests with MyASan and compare their exit codes.
+# Memory errors must return their corresponding error codes.
+# Return a failure status if at least one test fails.
 check: $(TARGET) $(TEST_BIN)
 	@printf "\n"
 	@failed=0; \
@@ -53,6 +56,7 @@ check: $(TARGET) $(TEST_BIN)
 		echo ""; \
 	done; \
 	exit $$failed
+
 
 debug: CFLAGS += -g
 debug: clean

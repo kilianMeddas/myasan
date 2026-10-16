@@ -89,9 +89,6 @@ enum memory_error poison_is_poisoned(void *ptr, size_t access_size,
     if ((offset + access_size) % 8 != 0)
         shadow_size++;
 
-    if (offset > 8 - (access_size % 8) && access_size % 8 != 0)
-        shadow_size++;
-
     remaining = access_size;
     current_offset = offset;
 
