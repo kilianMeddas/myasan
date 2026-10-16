@@ -2,6 +2,7 @@
 
 #include <execinfo.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "../include/hash_map.h"
@@ -60,26 +61,38 @@ void print_backtrace(void)
     void *frames[64];
     int count = backtrace(frames, 64);
 
-    if (count <= 2)
+    if (count <= 1)
         return;
 
     char **symbols = backtrace_symbols(frames, count);
+
     if (!symbols)
         return;
 
-    char buffer[1024];
-    int len = snprintf(buffer, sizeof(buffer), "\t#0 %s\n", symbols[2]);
+    for (int i = 1; i < count; i++)
+    {
+        if (strstr(symbols[i], "libmyasan.so") == NULL)
+        {
+            char buffer[1024];
+            int len = snprintf(buffer, sizeof(buffer), "\t#0 %s\n", symbols[i]);
 
-    if (len > 0 && (size_t)len < sizeof(buffer))
-        write_stderr(buffer, (size_t)len);
+            if (len > 0 && (size_t)len < sizeof(buffer))
+                write_stderr(buffer, (size_t)len);
+
+            break;
+        }
+    }
 
     free(symbols);
 }
 
 void report_memory_error(enum memory_error error, void *ptr)
 {
+    my_asan.error = error;
+
     print_memory_error(error, ptr);
     print_backtrace();
+
     exit(error);
 }
 

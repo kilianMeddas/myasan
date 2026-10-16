@@ -68,6 +68,8 @@ void poison_shadow_free(void *ptr, size_t size)
 enum memory_error poison_is_poisoned(void *ptr, size_t access_size,
                                      uint8_t **bad_ptr)
 {
+    if (access_size == 0)
+        return MEMORY_ERROR_NONE;
     uintptr_t ptr_addr;
     uintptr_t shadow_addr;
     uint8_t *shadow_ptr;
@@ -85,6 +87,9 @@ enum memory_error poison_is_poisoned(void *ptr, size_t access_size,
     offset = ptr_addr & 7;
     shadow_size = (offset + access_size) / 8;
     if ((offset + access_size) % 8 != 0)
+        shadow_size++;
+
+    if (offset > 8 - (access_size % 8) && access_size % 8 != 0)
         shadow_size++;
 
     remaining = access_size;
@@ -151,7 +156,7 @@ void poison_print_shadow(void *addr, void *shadow_addr)
         uintptr_t current = line_start + (uintptr_t)i * 16;
 
         if (i == bad_line)
-            fprintf(stderr, " =>%p:\t", (void *)current);
+            fprintf(stderr, "=>%p:\t", (void *)current);
         else
             fprintf(stderr, " %p:\t", (void *)current);
 
@@ -190,5 +195,5 @@ void check_ptr_validity(void *ptr, size_t access_size)
     print_memory_error(error, ptr);
     poison_print_shadow(ptr, bad);
     print_backtrace();
-    exit(3);
+    exit(error);
 }
